@@ -1,0 +1,7 @@
+#env
+.env.local
+.env.example
+.env.production
+
+#folder
+/node_modules
