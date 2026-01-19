@@ -236,19 +236,24 @@ app.use((err, _req, res, _next) => {
 	res.status(500).json({ error: 'Internal server error' });
 });
 
-async function start() {
-	try {
-		await client.connect();
-		await client.db('admin').command({ ping: 1 });
-		console.log('Connected to MongoDB and pinged admin database.');
+// Start server locally when not in Vercel serverless environment
+if (process.env.VERCEL !== '1') {
+	async function start() {
+		try {
+			await client.connect();
+			await client.db('admin').command({ ping: 1 });
+			console.log('Connected to MongoDB and pinged admin database.');
 
-		app.listen(PORT, () => {
-			console.log(`API server listening on port ${PORT}`);
-		});
-	} catch (err) {
-		console.error('Failed to start server', err);
-		process.exit(1);
+			app.listen(PORT, () => {
+				console.log(`API server listening on port ${PORT}`);
+			});
+		} catch (err) {
+			console.error('Failed to start server', err);
+			process.exit(1);
+		}
 	}
+	start();
 }
 
-start();
+// Export for Vercel serverless
+module.exports = app;

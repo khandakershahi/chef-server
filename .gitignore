@@ -7,3 +7,4 @@
 
 #folder
 /node_modules
+.vercel
