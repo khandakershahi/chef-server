@@ -54,8 +54,25 @@ const client = new MongoClient(MONGODB_URI, {
 	},
 });
 
-const getItemsCollection = () => client.db(DB_NAME).collection('items');
-const getUsersCollection = () => client.db(DB_NAME).collection('users');
+// Connect to MongoDB on-demand for serverless
+let isConnected = false;
+async function connectToMongo() {
+	if (!isConnected) {
+		await client.connect();
+		isConnected = true;
+		console.log('Connected to MongoDB');
+	}
+	return client;
+}
+
+const getItemsCollection = async () => {
+	await connectToMongo();
+	return client.db(DB_NAME).collection('items');
+};
+const getUsersCollection = async () => {
+	await connectToMongo();
+	return client.db(DB_NAME).collection('users');
+};
 
 // Simple root response to avoid framework 404 page and CSP complaints
 app.get('/', (_req, res) => {
@@ -78,7 +95,8 @@ app.post('/api/users', async (req, res, next) => {
 		}
 
 		// Check if user already exists
-		const existingUser = await getUsersCollection().findOne({ email });
+		const usersCollection = await getUsersCollection();
+		const existingUser = await usersCollection.findOne({ email });
 		if (existingUser) {
 			return res.status(409).json({ error: 'User already exists' });
 		}
@@ -90,7 +108,7 @@ app.post('/api/users', async (req, res, next) => {
 			createdAt: new Date(),
 		};
 
-		const result = await getUsersCollection().insertOne(user);
+		const result = await usersCollection.insertOne(user);
 		res.status(201).json({ _id: result.insertedId, ...user });
 	} catch (err) {
 		next(err);
@@ -100,7 +118,8 @@ app.post('/api/users', async (req, res, next) => {
 // Get all users
 app.get('/api/users', async (_req, res, next) => {
 	try {
-		const users = await getUsersCollection()
+		const usersCollection = await getUsersCollection();
+		const users = await usersCollection
 			.find({})
 			.sort({ createdAt: -1 })
 			.toArray();
@@ -118,7 +137,8 @@ app.get('/api/users/:id', async (req, res, next) => {
 			return res.status(400).json({ error: 'Invalid user id' });
 		}
 
-		const user = await getUsersCollection().findOne({ _id: new ObjectId(id) });
+		const usersCollection = await getUsersCollection();
+		const user = await usersCollection.findOne({ _id: new ObjectId(id) });
 		if (!user) {
 			return res.status(404).json({ error: 'User not found' });
 		}
@@ -137,7 +157,8 @@ app.delete('/api/users/:id', async (req, res, next) => {
 			return res.status(400).json({ error: 'Invalid user id' });
 		}
 
-		const result = await getUsersCollection().deleteOne({ _id: new ObjectId(id) });
+		const usersCollection = await getUsersCollection();
+		const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
 		if (result.deletedCount === 0) {
 			return res.status(404).json({ error: 'User not found' });
 		}
@@ -151,7 +172,8 @@ app.delete('/api/users/:id', async (req, res, next) => {
 // List items
 app.get('/api/items', async (_req, res, next) => {
 	try {
-		const items = await getItemsCollection()
+		const itemsCollection = await getItemsCollection();
+		const items = await itemsCollection
 			.find({})
 			.sort({ createdAt: -1 })
 			.limit(100)
@@ -170,7 +192,8 @@ app.get('/api/items/:id', async (req, res, next) => {
 			return res.status(400).json({ error: 'Invalid item id' });
 		}
 
-		const item = await getItemsCollection().findOne({ _id: new ObjectId(id) });
+		const itemsCollection = await getItemsCollection();
+		const item = await itemsCollection.findOne({ _id: new ObjectId(id) });
 		if (!item) {
 			return res.status(404).json({ error: 'Item not found' });
 		}
@@ -189,7 +212,8 @@ app.delete('/api/items/:id', async (req, res, next) => {
 			return res.status(400).json({ error: 'Invalid item id' });
 		}
 
-		const result = await getItemsCollection().deleteOne({ _id: new ObjectId(id) });
+		const itemsCollection = await getItemsCollection();
+		const result = await itemsCollection.deleteOne({ _id: new ObjectId(id) });
 		if (result.deletedCount === 0) {
 			return res.status(404).json({ error: 'Item not found' });
 		}
@@ -222,7 +246,8 @@ app.post('/api/items', async (req, res, next) => {
 			createdAt: new Date(),
 		};
 
-		const result = await getItemsCollection().insertOne(doc);
+		const itemsCollection = await getItemsCollection();
+		const result = await itemsCollection.insertOne(doc);
 		res.status(201).json({ _id: result.insertedId, ...doc });
 	} catch (err) {
 		next(err);
