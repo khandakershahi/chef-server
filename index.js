@@ -22,6 +22,13 @@ if (!MONGODB_URI) {
 
 const app = express();
 
+const publicDir = path.join(__dirname, 'public');
+app.use(express.static(publicDir));
+app.get('/favicon.ico', (_req, res) => {
+	res.type('image/svg+xml');
+	res.sendFile(path.join(publicDir, 'favicon.svg'));
+});
+
 // Allow comma-separated origins or single string; default to common local ports
 const allowedOrigins = (CLIENT_URL || '')
 	.split(',')
@@ -49,6 +56,11 @@ const client = new MongoClient(MONGODB_URI, {
 
 const getItemsCollection = () => client.db(DB_NAME).collection('items');
 const getUsersCollection = () => client.db(DB_NAME).collection('users');
+
+// Simple root response to avoid framework 404 page and CSP complaints
+app.get('/', (_req, res) => {
+	res.send('Chef API is running');
+});
 
 // Health check
 app.get('/api/health', (_req, res) => {
